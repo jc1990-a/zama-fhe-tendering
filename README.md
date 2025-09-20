@@ -5,7 +5,7 @@ A simple on-chain application that allows users to create tender projects, submi
 ---
 
 ## 🌐 Live Demo
-Try the live application: https://zama-fhe-survey.vercel.app/
+Try the live application: https://zama-fhe-tendering.vercel.app/
 
 ![界面截图](./image.png)
 
@@ -65,22 +65,30 @@ This project explores how smart contracts can be used to support a transparent t
 ### Steps
 
 ```bash
-# Clone repository
-git clone <your-repo-url>
-cd <repo-directory>
+# Clone the repository
+git clone https://github.com/jc1990-a/zama-fhe-tendering.git
+cd zama-fhe-tendering
 
 # Install dependencies
 npm install
 
-# Compile the contract
+# Install development dependencies
+npm install --save-dev @nomicfoundation/hardhat-toolbox
+
+# Install additional required packages
+npm install @zama-fhe/relayer-sdk
+npm install ethers dotenv
+npm install react react-dom
+
+# Compile contracts
 npx hardhat compile
 
-# Deploy (replace <network> with your target network)
-npx hardhat run scripts/deploy.js --network <network>
+# Deploy to network (configure hardhat.config.js first)
+npx hardhat run deploy/deploy.ts --network sepolia
 
-# Start the frontend
+# Start the development server
 cd frontend
-npm run dev
+npm run dev   
 ```
 
 ## 📜 Contract Interface
@@ -111,25 +119,3 @@ npm run dev
 - Enrich UI with charts, filters, and countdown timers  
 
 ---
-
-## 📂 Project Structure
-
-/.
-├── contracts/
-│ └── Tendering.sol
-├── frontend/
-│ ├── App.tsx
-│ ├── components/
-│ ├── contract/
-│ └── styles/
-├── scripts/
-├── test/
-├── hardhat.config.js
-└── README.md
-
----
-
-## 🙌 Acknowledgements
-
-Inspired by open-source smart contract demos and community tutorials.  
-Thanks to contributors and testers who helped improve this project.
