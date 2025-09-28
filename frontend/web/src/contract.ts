@@ -6,29 +6,82 @@ import configJson from "./config.json";
 export const ABI = (abiJson as any).abi || abiJson;
 export const config = configJson;
 
-export async function getProvider() {
-  // if user has MetaMask, we'll use it when connecting
-  if ((window as any).ethereum) {
-    const p = new ethers.BrowserProvider((window as any).ethereum);
-    return p;
+const retry = async <T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> => {
+  try {
+    return await fn();
+  } catch (e) {
+    if (retries > 0) {
+      await new Promise(res => setTimeout(res, delay));
+      return retry(fn, retries - 1, delay * 2);
+    }
+    throw e;
   }
-  // fallback to public rpc
-  return new ethers.JsonRpcProvider(config.network);
-}
+};
 
-// get a read-only contract (provider based)
+const getTestnetProvider = async () => {
+  const rpcUrls = [
+    "https://sepolia.infura.io/v3/96406da962744120afbe0cf64c8bd7b3",
+    "https://rpc.sepolia.org",
+    "https://rpc2.sepolia.org",
+    "https://eth-sepolia.public.blastapi.io"
+  ];
+  
+  for (const url of rpcUrls) {
+    try {
+      const provider = new ethers.JsonRpcProvider(url, {
+        name: "sepolia",
+        chainId: 11155111
+      });
+      
+      const blockNumber = await Promise.race([
+        provider.getBlockNumber(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("RPC timeout")), 10000)
+        )
+      ]);
+      
+      console.log(`Connected to RPC ${url}, block: ${blockNumber}`);
+      return provider;
+    } catch (error) {
+      console.warn(`RPC ${url} failed: ${error.message}`);
+    }
+  }
+  
+  throw new Error("All RPC providers failed");
+};
+
 export async function getContractReadOnly() {
-  const provider = await getProvider();
-  return new ethers.Contract(config.contractAddress, ABI, provider);
+  try {
+    const provider = await getTestnetProvider();
+    const contract = new ethers.Contract(config.contractAddress, ABI, provider);
+    
+    const code = await retry(() => provider.getCode(config.contractAddress));
+    if (code === "0x") {
+      return null;
+    }
+    
+    return contract;
+  } catch (error) {
+    console.error("Failed to create read-only contract:", error);
+    return null;
+  }
 }
 
-// get a contract connected to signer (for write)
 export async function getContractWithSigner() {
-  if (!(window as any).ethereum) throw new Error("No injected wallet");
-  const provider = new ethers.BrowserProvider((window as any).ethereum);
-  const signer = await provider.getSigner();
-  return new ethers.Contract(config.contractAddress, ABI, signer);
+  if (!(window as any).ethereum) {
+    throw new Error("No injected wallet");
+  }
+  try {
+    const provider = new ethers.BrowserProvider((window as any).ethereum);
+    const signer = await provider.getSigner();
+    const contract = new ethers.Contract(config.contractAddress, ABI, signer);
+    return contract;
+  } catch (error) {
+    console.error("Failed to create contract with signer:", error);
+    throw error;
+  }
 }
 
-// helper: format address lowercase
-export function normAddr(a: string) { return a ? a.toLowerCase() : a; }
+export function normAddr(a: string) { 
+  return a ? a.toLowerCase() : a; 
+}
